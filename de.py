@@ -69,7 +69,7 @@ def mutation(current_population:np.array, F:float) -> np.array:
         array of size NP containing the donor vectors
     """
     if F <= 0 or F >= 1:
-        raise "[ERROR]: scaling factor F is out of range"
+        return "[ERROR]: scaling factor F is out of range"
     
     donor_vectors = []
 
@@ -91,5 +91,44 @@ def mutation(current_population:np.array, F:float) -> np.array:
 
 
 # Step3: Crossover
+def crossover(current_population:np.array, donor_vectors:np.array, Cr:float) -> np.array:
+    """
+    performs the crossover step of the differential evolution. This step creates a set of trial vectors for the next generation.
+
+    parameters:
+        current_population: array of size NP containing the current vectors
+        donor_vectors: array of size NP containing the donor vectors
+        Cr: Crossover rate (0 <= Cr <= 1)
+
+    returns:
+        array of size NP containing the trial vectors
+    """
+    if Cr <= 0 or Cr >= 1:
+        return "[ERROR]: Crossover rate Cr is out of range"
+
+
+    trial_vectors = []
+    for i in range(len(donor_vectors)):
+        U_i = []
+        for j in range(len(donor_vectors[i])):
+            r = random.uniform(0, 1)
+
+            if r <= Cr:
+                U_i.append(donor_vectors[i][j])
+            elif r > Cr:
+                U_i.append(current_population[i][j])
+            else:
+                return "[ERROR]: an unknown error occurred"
+            
+        
+        l = random.randint(0, len(U_i) - 1)
+        U_i[l] = donor_vectors[i][l]
+        trial_vectors.append(U_i)
+    
+    return np.array(trial_vectors)
+
+    
+
+
 # Step4: Selection
-# Step5: Break conditions
+# Step5: Brea
