@@ -131,4 +131,4 @@ def crossover(current_population:np.array, donor_vectors:np.array, Cr:float) -> 
 
 
 # Step4: Selection
-# Step5: Brea
+# Step5: Break conditions
