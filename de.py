@@ -1,6 +1,31 @@
 import numpy as np
 import random
 
+def likelihood(vector:np.array, params:list[float]) -> float:
+    """
+    calculates the log-likelihood of a given input vector
+
+    parameters:
+        vector:  one dimensional input array of arbitrary length
+        params: expectation value and width of probability density
+
+    returns:
+        calculated log-likelihood of the input vector as a float
+    """
+    if len(params) != 2:
+        return "[ERROR]: length of parameter list must be 2"
+
+    D = len(vector)
+    mu = params[0]
+    sigma = params[1]
+    Sum = np.sum([(vector[i] - mu) ** 2 for i in range(len(vector))])
+
+    return -(0.5 * D) * np.log(2 * np.pi * sigma**2) - (1/(2* sigma**2)) * Sum
+
+
+    
+
+
 # Step1: Initialize Generation
 def create_base_vector(D:int, ranges:np.array) -> np.array:
     """
@@ -83,6 +108,8 @@ def mutation(current_population:np.array, F:float) -> np.array:
 
         X_1, X_2, X_3 = base_vectors
         donor_vectors.append(X_1 + F * (X_2 - X_3))
+
+    print("[INFO]: created array of donor vectors")
     
     return np.array(donor_vectors)
         
@@ -124,6 +151,8 @@ def crossover(current_population:np.array, donor_vectors:np.array, Cr:float) -> 
         l = random.randint(0, len(U_i) - 1)
         U_i[l] = donor_vectors[i][l]
         trial_vectors.append(U_i)
+
+    print("[INFO]: created array of trial vectors")
     
     return np.array(trial_vectors)
 
@@ -131,4 +160,34 @@ def crossover(current_population:np.array, donor_vectors:np.array, Cr:float) -> 
 
 
 # Step4: Selection
+def selection(current_population:np.array, trial_vectors:np.array, likelihood_params:list[float]) -> np.array:
+    """
+    performs the selection step of the differential evolution. 
+    Since DE is a greedy algorithm the new generation only accepts vectors with a better likelihood
+
+    paramters:
+        current_population: array of size NP containing the current vectors
+        trial_vectors: array of size NP containing the trial vectors
+        likelihood_params: list containing the parameters for the likelihood function
+
+    returns:    
+        array of size NP containing the new population
+    """
+    new_population = []
+    for i in range(len(current_population)):
+        if abs(likelihood(current_population[i], likelihood_params)) < abs(likelihood(trial_vectors[i], likelihood_params)):
+            new_population.append(current_population[i])
+        if abs(likelihood(current_population[i], likelihood_params)) >= abs(likelihood(trial_vectors[i], likelihood_params)):
+            new_population.append(trial_vectors[i])
+
+    if len(new_population) != len(current_population):
+        return "[ERROR]: length of current and new population is not the same"
+    
+    print("[INFO]: created a new population according to the selection process")
+
+    return np.array(new_population)
+
+
+
+
 # Step5: Break conditions
