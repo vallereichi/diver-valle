@@ -240,6 +240,8 @@ def diver(D:int, ranges:np.array, F:float, Cr:float, likelihood_params:list[floa
         trial_vectors = crossover(current_generation, donor_vectors, Cr)
         next_generation = selection(current_generation, trial_vectors, likelihood_params)
 
+        
+
         counter += 1
         conv_diff = max([abs(likelihood(current_generation[i], likelihood_params) - likelihood(next_generation[i], likelihood_params)) for i in range(len(current_generation))])
         output.append(next_generation)
