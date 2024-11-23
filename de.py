@@ -279,6 +279,10 @@ def diver(input_file:str) -> list[np.array]:
     conv_diff = 0
     ranges = []
     capabilities = []
+    output = {
+        'LogLike': 0,
+    }
+    generations = []
 
     # handling the input file and setting default parameters
     parameter_dict, diver_dict = read_input(input_file)
@@ -286,6 +290,10 @@ def diver(input_file:str) -> list[np.array]:
     for parameter in parameter_dict.keys():
         ranges.append(parameter_dict[parameter]['range'])
         capabilities.append(parameter_dict[parameter]['capability'])
+        output[parameter] = {
+            'likelihood': [],
+            'values': [],
+        }
 
     D = len(ranges)
 
@@ -326,7 +334,21 @@ def diver(input_file:str) -> list[np.array]:
 
     current_generation = initialize_generation(D, ranges, NP)
     current_likelihoods = calculate_likelihood(current_generation, capabilities)
-    output = [current_generation]
+    for i, parameter in enumerate(parameter_dict.keys()):
+        output[parameter]['likelihood'] = current_likelihoods.T[i]
+        output[parameter]['values'] = current_generation.T[i]
+    
+    generations.append(output)
+    output = {
+        'LogLike': 0,
+    }
+    for parameter in parameter_dict.keys():
+        output[parameter] = {
+            'likelihood': [],
+            'values': [],
+        }
+    
+
 
     while (counter <= steps) and (convthresh <= conv_diff):
         print(f"[STEP {counter}] running differential evolution")
@@ -338,14 +360,33 @@ def diver(input_file:str) -> list[np.array]:
         
 
         counter += 1
-        conv_diff = np.max([combined_log_likelihood(current_likelihoods[i]) - combined_log_likelihood(next_likelihoods[i]) for i in range(len(next_likelihoods))])
-        output.append(next_generation)
+        conv_diff = np.max([abs(combined_log_likelihood(current_likelihoods[i]) - combined_log_likelihood(next_likelihoods[i])) for i in range(len(next_likelihoods))])
+
+        for i, parameter in enumerate(parameter_dict.keys()):
+            output[parameter]['likelihood'] = next_likelihoods.T[i]
+            output[parameter]['values'] = current_generation.T[i]
+        
+        generations.append(output)
+
+        output = {
+        'LogLike': 0,
+        }
+        for parameter in parameter_dict.keys():
+            output[parameter] = {
+                'likelihood': [],
+                'values': [],
+            }
+
         current_generation = next_generation
-        current_generation = next_likelihoods
+        current_likelihoods = next_likelihoods
 
         print(f"[INFO]: Likelihood difference: {conv_diff}")
 
-    return output
+    return generations
+
+
+if __name__ == "__main__":
+    diver('example.yaml')
     
 
 
