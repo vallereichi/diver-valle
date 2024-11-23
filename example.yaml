@@ -1,10 +1,10 @@
 parameters:
     X:
         range: [0,1]
-        likelihood: example
+        capability: example
     Y:
         range: [0,1]
-        likelihood: example
+        capability: example
 
 diver:
     NP: 10

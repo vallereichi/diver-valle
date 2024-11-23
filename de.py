@@ -33,7 +33,19 @@ def likelihood(vector:np.array, params:list[float]) -> float:
     return -(0.5 * D) * np.log(2 * np.pi * sigma**2) - (1/(2* sigma**2)) * Sum
 
 
-    
+def calculate_likelihood(vector:np.array, capabilities:list[str]) -> dict:
+    likes = []
+    par_likes = []
+    capability_functions = [getattr(likelihoods, capabilities[i]) for i in range(len(capabilities))]
+
+    for i in range(len(vector)):
+        for j in range(len(capability_functions)):
+            likes.append(capability_functions[j](vector[i][j]))
+        par_likes.append(np.array(likes))
+        likes = []
+
+
+    return np.array(par_likes)
 
 
 # Step1: Initialize Generation
@@ -83,7 +95,7 @@ def initialize_generation(D:int, ranges:np.array, NP:int = None) -> np.array:
         X = np.unique(X, axis=0)
         np.append(X, create_base_vector(D, ranges))
         
-
+    
     print(f"[INFO]: initialized first generation with {NP} unique base vectors of dimension {D}")
     return X
 
@@ -170,7 +182,7 @@ def crossover(current_generation:np.array, donor_vectors:np.array, Cr:float) -> 
 
 
 # Step4: Selection
-def selection(current_generation:np.array, trial_vectors:np.array, likelihoods:list[function]) -> np.array:
+def selection(current_generation:np.array, trial_vectors:np.array, current_likelihoods:np.array, trial_likelihoods:np.array) -> np.array:
     """
     performs the selection step of the differential evolution. 
     Since DE is a greedy algorithm the new generation only accepts vectors with a better likelihood
@@ -184,18 +196,21 @@ def selection(current_generation:np.array, trial_vectors:np.array, likelihoods:l
         array of size NP containing the new generation
     """
     new_generation = []
+    new_likelihoods =[]
     for i in range(len(current_generation)):
-        if abs(likelihood(current_generation[i], likelihood_params)) < abs(likelihood(trial_vectors[i], likelihood_params)):
+        if abs(combined_log_likelihood(current_likelihoods[i])) < abs(combined_log_likelihood(trial_likelihoods[i])):
             new_generation.append(current_generation[i])
-        if abs(likelihood(current_generation[i], likelihood_params)) >= abs(likelihood(trial_vectors[i], likelihood_params)):
+            new_likelihoods.append(current_likelihoods[i])
+        if abs(combined_log_likelihood(current_likelihoods[i])) >= abs(combined_log_likelihood(trial_likelihoods[i])):
             new_generation.append(trial_vectors[i])
+            new_likelihoods.append(trial_likelihoods[i])
 
     if len(new_generation) != len(current_generation):
         return "[ERROR]: length of current and new generation is not the same"
     
     print(f"[INFO]: created a new generation of shape {np.array(new_generation).shape} according to the selection process")
 
-    return np.array(new_generation)
+    return np.array(new_generation), np.array(new_likelihoods)
 
 
 
@@ -231,15 +246,11 @@ def read_input(filepath:str):
         return "[ERROR]: You need to specify the number of chains in the input yaml file"
     
     for parameter in dict['parameters'].keys():
-        if "range" not in parameter.keys():
+        if "range" not in dict['parameters'][parameter].keys():
             return f"[ERROR]: No range specified for parameter {parameter}"
-        if "likelihood" not in parameter.keys():
-            return f"[ERROR]: No likelihood specified for parameter {parameter}"
-        else:
-            dict['parameters'][parameter]['likelihood'] = getattr(likelihoods, dict['parameters'][parameter]['likelihood'])
-        
+        if "capability" not in dict['parameters'][parameter].keys():
+            return f"[ERROR]: No capability specified for parameter {parameter}"
     
-
     return dict['parameters'], dict['diver']
 
 
@@ -267,14 +278,32 @@ def diver(input_file:str) -> list[np.array]:
     counter = 1
     conv_diff = 0
     ranges = []
+    capabilities = []
 
     # handling the input file and setting default parameters
     parameter_dict, diver_dict = read_input(input_file)
 
     for parameter in parameter_dict.keys():
         ranges.append(parameter_dict[parameter]['range'])
+        capabilities.append(parameter_dict[parameter]['capability'])
 
     D = len(ranges)
+
+    try:
+        NP = diver_dict['NP']
+    except: pass
+    try:
+        F = diver_dict['F']
+    except: pass
+    try:
+        Cr = diver_dict['Cr']
+    except: pass
+    try:
+        steps = diver_dict['steps']
+    except: pass
+    try:
+        convthresh = diver_dict['convthresh']
+    except: pass
 
     if "NP" not in diver_dict.keys():
         NP = 10* D
@@ -288,6 +317,7 @@ def diver(input_file:str) -> list[np.array]:
         convthresh = None
 
     
+    
     if convthresh != None:
         steps = MAX_STEPS
 
@@ -295,22 +325,25 @@ def diver(input_file:str) -> list[np.array]:
         convthresh = conv_diff
 
     current_generation = initialize_generation(D, ranges, NP)
+    current_likelihoods = calculate_likelihood(current_generation, capabilities)
     output = [current_generation]
 
     while (counter <= steps) and (convthresh <= conv_diff):
         print(f"[STEP {counter}] running differential evolution")
         donor_vectors = mutation(current_generation, F)
         trial_vectors = crossover(current_generation, donor_vectors, Cr)
-        next_generation = selection(current_generation, trial_vectors, likelihood_params)
+        trial_likelihoods = calculate_likelihood(trial_vectors, capabilities)
+        next_generation, next_likelihoods = selection(current_generation, trial_vectors, current_likelihoods, trial_likelihoods)
 
         
 
         counter += 1
-        conv_diff = max([abs(likelihood(current_generation[i], likelihood_params) - likelihood(next_generation[i], likelihood_params)) for i in range(len(current_generation))])
+        conv_diff = np.max([combined_log_likelihood(current_likelihoods[i]) - combined_log_likelihood(next_likelihoods[i]) for i in range(len(next_likelihoods))])
         output.append(next_generation)
         current_generation = next_generation
+        current_generation = next_likelihoods
 
-        print(f"[INFO]: likelihood difference: {conv_diff}")
+        print(f"[INFO]: Likelihood difference: {conv_diff}")
 
     return output
     
