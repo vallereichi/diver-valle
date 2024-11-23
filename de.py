@@ -1,5 +1,10 @@
 import numpy as np
 import random
+import yaml
+from yaml import Loader
+import likelihoods
+from likelihoods import combined_log_likelihood
+
 
 def likelihood(vector:np.array, params:list[float]) -> float:
     """
@@ -165,7 +170,7 @@ def crossover(current_generation:np.array, donor_vectors:np.array, Cr:float) -> 
 
 
 # Step4: Selection
-def selection(current_generation:np.array, trial_vectors:np.array, likelihood_params:list[float]) -> np.array:
+def selection(current_generation:np.array, trial_vectors:np.array, likelihoods:list[function]) -> np.array:
     """
     performs the selection step of the differential evolution. 
     Since DE is a greedy algorithm the new generation only accepts vectors with a better likelihood
@@ -196,7 +201,53 @@ def selection(current_generation:np.array, trial_vectors:np.array, likelihood_pa
 
 
 # Step5: Break conditions and loop
-def diver(D:int, ranges:np.array, F:float, Cr:float, likelihood_params:list[float], NP:int = None, steps:int = None, convthresh:float = None) -> list[np.array]:
+def read_input(filepath:str):
+    """
+    This function reads an input yaml file and returns the different sections "parameters" and "diver" as seperate dictionaries.
+    The parameter section should contain all parameters for the diver run and the diver section contains general parameters:
+
+        ''' parameters:
+                param1:
+                    range: [a,b]
+                    likelihood: 'parameter specific likelihood'
+                param2:
+                    .
+                    .
+                    .
+                
+            diver:
+                NP: 'number of chains to initialize'
+                F: 'Scaling factor for Mutation'
+                Cr: 'Crossover parameter'
+                    .
+                    .
+                    .
+        '''
+    """
+    stream = open(filepath, 'r')
+    dict = yaml.load(stream, Loader=Loader)
+
+    if "NP" not in dict['diver'].keys():
+        return "[ERROR]: You need to specify the number of chains in the input yaml file"
+    
+    for parameter in dict['parameters'].keys():
+        if "range" not in parameter.keys():
+            return f"[ERROR]: No range specified for parameter {parameter}"
+        if "likelihood" not in parameter.keys():
+            return f"[ERROR]: No likelihood specified for parameter {parameter}"
+        else:
+            dict['parameters'][parameter]['likelihood'] = getattr(likelihoods, dict['parameters'][parameter]['likelihood'])
+        
+    
+
+    return dict['parameters'], dict['diver']
+
+
+
+
+
+
+def diver(input_file:str) -> list[np.array]:
     """
     Full run of the differential evolution algorithm
 
@@ -215,16 +266,28 @@ def diver(D:int, ranges:np.array, F:float, Cr:float, likelihood_params:list[floa
     MAX_STEPS = 10000
     counter = 1
     conv_diff = 0
+    ranges = []
 
-    if D != len(ranges):
-        return "[ERROR]: length of ranges does not correspond to the dimension specified"
+    # handling the input file and setting default parameters
+    parameter_dict, diver_dict = read_input(input_file)
+
+    for parameter in parameter_dict.keys():
+        ranges.append(parameter_dict[parameter]['range'])
+
+    D = len(ranges)
+
+    if "NP" not in diver_dict.keys():
+        NP = 10* D
+    if "F" not in diver_dict.keys():
+        F = 0.8
+    if "Cr" not in diver_dict.keys():
+        Cr = 0.8
+    if "steps" not in diver_dict.keys():
+        steps == 10
+    if "convthresh" not in diver_dict.keys():
+        convthresh = None
+
     
-    if NP == None:
-        NP = 10 * D
-
-    if steps == None:
-        steps = 10
-
     if convthresh != None:
         steps = MAX_STEPS
 

@@ -1,0 +1,13 @@
+parameters:
+    X:
+        range: [0,1]
+        likelihood: example
+    Y:
+        range: [0,1]
+        likelihood: example
+
+diver:
+    NP: 10
+    F: 0.8
+    Cr: 0.8
+    steps: 5
